@@ -1,1 +1,5 @@
-.env\n__pycache__/\n*.pyc\ndrafts_*.json\npublished_*.json
+.env
+__pycache__/
+*.pyc
+drafts_*.json
+published_*.json
