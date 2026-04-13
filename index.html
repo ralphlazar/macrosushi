@@ -19,9 +19,37 @@
     .pip { width: 9px; height: 9px; border-radius: 50%; background: #c9684a; flex-shrink: 0; opacity: 0.6; }
     .piece-text { font-size: 15px; color: #1a1a1a; line-height: 1.75; font-weight: 300; }
     .get-these { font-size: 13px; color: #888; margin-bottom: 1rem; }
-    .signup-links { display: flex; flex-direction: column; gap: 10px; margin-bottom: 3rem; }
-    .signup-link { font-size: 14px; font-weight: 300; color: #c9684a; text-decoration: none; }
-    .signup-link:hover { opacity: 0.7; }
+    .subscribe-form { margin-bottom: 3rem; }
+    .subscribe-form input {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 300;
+      color: #1a1a1a;
+      text-align: center;
+      border: none;
+      border-bottom: 1px solid #eee;
+      outline: none;
+      padding: 0.5rem 0;
+      width: 220px;
+      margin-bottom: 12px;
+      background: transparent;
+    }
+    .subscribe-form input::placeholder { color: #ccc; }
+    .subscribe-form button {
+      display: block;
+      margin: 0 auto;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 300;
+      color: #c9684a;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .subscribe-form button:hover { opacity: 0.7; }
+    .subscribe-form button:disabled { opacity: 0.4; cursor: default; }
+    .sub-msg { font-size: 12px; color: #888; margin-top: 12px; min-height: 1.2em; }
     .anti-scroll { font-size: 11px; color: #bbb; margin-bottom: 2.5rem; }
     .footer { font-size: 11px; color: #ccc; }
     .footer a { color: #c9684a; text-decoration: none; opacity: 0.8; }
@@ -49,13 +77,54 @@
     </div>
 
     <div class="get-these">yum, yes please</div>
-    <div class="signup-links">
-      <a class="signup-link" href="#">by email &rarr;</a>
-      <a class="signup-link" href="#">by whatsapp or text &rarr;</a>
+    <div class="subscribe-form">
+      <input type="email" id="sub-email" placeholder="your email" autocomplete="email" />
+      <button id="sub-btn">subscribe &rarr;</button>
+      <div class="sub-msg" id="sub-msg"></div>
     </div>
 
     <div class="anti-scroll">that's it. off you go.</div>
     <div class="footer">powered by <a href="https://macrosnaps.app" target="_blank">macrosnaps</a></div>
   </div>
+
+  <script>
+    var btn = document.getElementById('sub-btn');
+    var input = document.getElementById('sub-email');
+    var msg = document.getElementById('sub-msg');
+
+    btn.addEventListener('click', subscribe);
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') subscribe();
+    });
+
+    async function subscribe() {
+      var email = input.value.trim();
+      if (!email) return;
+
+      btn.disabled = true;
+      btn.textContent = '...';
+      msg.textContent = '';
+
+      try {
+        var r = await fetch('/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+        var data = await r.json();
+        if (data.ok) {
+          msg.textContent = "you're in. see you tomorrow.";
+          input.value = '';
+        } else {
+          msg.textContent = data.error || "hmm, that didn't work.";
+        }
+      } catch (e) {
+        msg.textContent = "hmm, that didn't work.";
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'subscribe \u2192';
+    }
+  </script>
 </body>
 </html>
