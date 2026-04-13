@@ -11,9 +11,13 @@ Then open: http://localhost:5123
 """
 
 import json
+import sys
 from datetime import date
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+
+REPO = Path(__file__).parent
+sys.path.insert(0, str(REPO))
 
 REPO = Path(__file__).parent
 PORT = 5123
@@ -70,6 +74,12 @@ class Handler(BaseHTTPRequestHandler):
                 rebuild_index(data)
             except Exception as e:
                 print(f"  warning: could not rebuild index.html - {e}")
+
+            try:
+                import send_email
+                send_email.main(str(out_path))
+            except Exception as e:
+                print(f"  warning: email send failed - {e}")
 
             resp = json.dumps({"ok": True, "file": filename}).encode()
             self._send(200, "application/json", resp)
