@@ -266,14 +266,52 @@
       position: absolute;
       top: 10px;
       right: 12px;
-      font-size: 10px;
-      color: var(--salmon);
-      letter-spacing: 0.08em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
       opacity: 0;
       transition: opacity 0.18s;
     }
     .card.selected .card-badge {
       opacity: 1;
+    }
+    .card-position {
+      font-size: 11px;
+      color: #fff;
+      background: var(--salmon);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 400;
+    }
+    .card-reorder {
+      display: flex;
+      gap: 2px;
+    }
+    .card-reorder button {
+      font-size: 10px;
+      color: var(--salmon);
+      background: var(--salmon-light);
+      border: none;
+      border-radius: 4px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .card-reorder button:hover {
+      background: var(--salmon-mid);
+    }
+    .card-reorder button:disabled {
+      opacity: 0.3;
+      cursor: default;
     }
 
     /* ---- hint ---- */
@@ -348,7 +386,7 @@
   <script>
     const state = {
       pieces: [],
-      selected: new Set()
+      selected: []
     };
 
     // ---- file load ----
@@ -377,7 +415,7 @@
 
     function loadDrafts(data) {
       state.pieces = data.pieces.map(p => p.text);
-      state.selected = new Set();
+      state.selected = [];
 
       document.getElementById('subject-input').value = data.subject || '';
       document.getElementById('load-screen').style.display = 'none';
@@ -403,12 +441,17 @@
             <div class="card-num">${i + 1}</div>
           </div>
           <textarea class="card-text" rows="3" spellcheck="true">${text}</textarea>
-          <div class="card-badge">selected</div>
+          <div class="card-badge">
+            <div class="card-position"></div>
+            <div class="card-reorder">
+              <button class="btn-up" title="move up">\u25B2</button>
+              <button class="btn-down" title="move down">\u25BC</button>
+            </div>
+          </div>
         `;
 
         const textarea = card.querySelector('.card-text');
 
-        // auto-resize textarea
         function resize() {
           textarea.style.height = 'auto';
           textarea.style.height = textarea.scrollHeight + 'px';
@@ -419,15 +462,23 @@
         });
         setTimeout(resize, 0);
 
-        // clicking the card (not text) toggles selection
         card.addEventListener('click', e => {
-          if (e.target === textarea) return;
+          if (e.target === textarea || e.target.closest('.card-reorder')) return;
           toggleSelect(i);
         });
 
-        // clicking the textarea focuses it but doesn't toggle
         textarea.addEventListener('click', e => {
           e.stopPropagation();
+        });
+
+        card.querySelector('.btn-up').addEventListener('click', e => {
+          e.stopPropagation();
+          reorder(i, -1);
+        });
+
+        card.querySelector('.btn-down').addEventListener('click', e => {
+          e.stopPropagation();
+          reorder(i, 1);
         });
 
         container.appendChild(card);
@@ -435,39 +486,58 @@
     }
 
     function toggleSelect(i) {
-      if (state.selected.has(i)) {
-        state.selected.delete(i);
+      const pos = state.selected.indexOf(i);
+      if (pos !== -1) {
+        state.selected.splice(pos, 1);
       } else {
-        if (state.selected.size >= 3) {
+        if (state.selected.length >= 3) {
           showToast('deselect one first');
           return;
         }
-        state.selected.add(i);
+        state.selected.push(i);
       }
       updateUI();
     }
 
+    function reorder(cardIndex, direction) {
+      const pos = state.selected.indexOf(cardIndex);
+      if (pos === -1) return;
+      const newPos = pos + direction;
+      if (newPos < 0 || newPos >= state.selected.length) return;
+      state.selected.splice(pos, 1);
+      state.selected.splice(newPos, 0, cardIndex);
+      updateUI();
+    }
+
     function updateUI() {
-      const count = state.selected.size;
+      const count = state.selected.length;
       const ready = count === 3;
 
-      // cards
       document.querySelectorAll('.card').forEach(card => {
         const i = parseInt(card.dataset.index);
-        card.classList.toggle('selected', state.selected.has(i));
+        const pos = state.selected.indexOf(i);
+        const isSelected = pos !== -1;
+        card.classList.toggle('selected', isSelected);
+
+        const posEl = card.querySelector('.card-position');
+        const btnUp = card.querySelector('.btn-up');
+        const btnDown = card.querySelector('.btn-down');
+
+        if (isSelected) {
+          posEl.textContent = pos + 1;
+          btnUp.disabled = pos === 0;
+          btnDown.disabled = pos === state.selected.length - 1;
+        }
       });
 
-      // pill
       const pill = document.getElementById('count-pill');
       pill.textContent = `${count} of 3 selected`;
       pill.classList.toggle('ready', ready);
 
-      // publish button
       const btn = document.getElementById('btn-publish');
       btn.disabled = !ready;
       btn.classList.toggle('active', ready);
 
-      // hint
       const hint = document.getElementById('hint');
       if (ready) {
         hint.textContent = 'looking good. hit publish when you are ready.';
@@ -478,13 +548,10 @@
 
     // ---- publish ----
     document.getElementById('btn-publish').addEventListener('click', async () => {
-      if (state.selected.size !== 3) return;
+      if (state.selected.length !== 3) return;
 
-      const today = new Date().toISOString().split('T')[0];
       const subject = document.getElementById('subject-input').value.trim();
-      const pieces = [...state.selected]
-        .sort((a, b) => a - b)
-        .map(i => ({ text: state.pieces[i] }));
+      const pieces = state.selected.map(i => ({ text: state.pieces[i] }));
 
       const output = { subject, pieces };
 
